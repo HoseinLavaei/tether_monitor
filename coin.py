@@ -1,94 +1,66 @@
-from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Iterator, Mapping, Self
+from typing import Any, Iterator
+
+from pydantic import BaseModel, Field
 
 
-def nulls_last(value: Any, fallback: Any) -> tuple[int, Any]:
-    """
-    Sorting helper: puts None values at the end.
+def sort_key_with_nulls(value: Any, fallback: Any) -> tuple[int, Any]:
+    """Returns a sort key tuple that places None values at the end.
+    
+    Used as a key function in sorted() to handle optional fields like rank and market_cap.
     """
     return value is None, value if value is not None else fallback
 
 
-# ----------------------------
-# Coin
-# ----------------------------
-
-@dataclass(slots=True, frozen=True)
-class Coin:
+class Coin(BaseModel):
+    """Represents a cryptocurrency with market data.
+    
+    Frozen model to ensure immutability after creation.
+    """
     name: str
     symbol: str
     current_price: Decimal
     price_change_24h: Decimal
     high_24h: Decimal
     low_24h: Decimal
-    market_cap: Decimal | None
+    market_cap: Decimal | None = None
     volume_24h: Decimal
-    circulating_supply: Decimal | None
-    rank: int | None
+    circulating_supply: Decimal | None = None
+    rank: int | None = None
 
-    @classmethod
-    def from_string(cls, data: str) -> Self:
-        slices = [s.strip() for s in data.split(",")]
-
-        if len(slices) != 10:
-            raise ValueError(
-                f"Expected 10 comma-separated values, got {len(slices)}."
-            )
-
-        def dec(x: str) -> Decimal | None:
-            return Decimal(x) if x not in ("", "None", None) else None
-
-        def integer(x: str) -> int | None:
-            return int(x) if x not in ("", "None", None) else None
-
-        return cls(
-            name=slices[0],
-            symbol=slices[1].upper(),
-            current_price=Decimal(slices[2]),
-            price_change_24h=Decimal(slices[3]),
-            high_24h=Decimal(slices[4]),
-            low_24h=Decimal(slices[5]),
-            market_cap=dec(slices[6]),
-            volume_24h=Decimal(slices[7]),
-            circulating_supply=dec(slices[8]),
-            rank=integer(slices[9]),
-        )
-
-    @classmethod
-    def parse(cls, data: str | Mapping[str, Any]) -> Self:
-        if isinstance(data, str):
-            return cls.from_string(data)
-        if isinstance(data, Mapping):
-            return cls(**data)
-
-        raise TypeError(f"Unsupported type: {type(data).__name__}")
+    model_config = {"frozen": True}
 
     @property
     def is_gaining(self) -> bool:
+        """True if the 24h price change is positive."""
         return self.price_change_24h > 0
 
     @property
     def is_losing(self) -> bool:
+        """True if the 24h price change is negative."""
         return self.price_change_24h < 0
 
     def __str__(self) -> str:
+        def format_decimal(value: Decimal, decimals: int = 2) -> str:
+            """Format decimal with thousands separators and specified decimal places."""
+            return f"{value:,.{decimals}f}"
+
         lines = [
             f"Name: {self.name}",
             f"Symbol: {self.symbol}",
-            f"Current Price: {self.current_price}",
-            f"24h Change: {self.price_change_24h}%",
-            f"24h High: {self.high_24h}",
-            f"24h Low: {self.low_24h}",
+            f"Current Price: ${format_decimal(self.current_price)}",
+            f"24h Change: {format_decimal(self.price_change_24h, 2)}%",
+            f"24h High: ${format_decimal(self.high_24h)}",
+            f"24h Low: ${format_decimal(self.low_24h)}",
         ]
 
         if self.market_cap is not None:
-            lines.append(f"Market Cap: {self.market_cap}")
+            lines.append(f"Market Cap: ${format_decimal(self.market_cap, 0)}")
 
-        lines.append(f"24h Volume: {self.volume_24h}")
+        lines.append(f"24h Volume: ${format_decimal(self.volume_24h, 0)}")
 
         if self.circulating_supply is not None:
-            lines.append(f"Circulating Supply: {self.circulating_supply}")
+            lines.append(f"Circulating Supply: {format_decimal(self.circulating_supply, 0)}")
 
         if self.rank is not None:
             lines.append(f"Rank: #{self.rank}")
@@ -96,86 +68,64 @@ class Coin:
         return "\n".join(lines)
 
 
-# ----------------------------
-# Coins collection
-# ----------------------------
-
-@dataclass(slots=True)
-class Coins:
+class Coins(BaseModel):
+    """Collection of coins from a specific provider and currency.
+    
+    Acts as a dictionary with symbol keys for easy access.
+    """
     provider: str
     currency: str
-    coins: dict[str, Coin] = field(default_factory=dict)
+    coins: dict[str, Coin] = Field(default_factory=dict)
 
     @classmethod
-    def from_string(cls, provider: str, currency: str, data: str) -> Self:
-        coins = cls(provider, currency)
-
-        for coin_data in data.split("|"):
-            coin_data = coin_data.strip()
-            if coin_data:
-                coins.add(Coin.parse(coin_data))
-
-        return coins
-
-    @classmethod
-    def from_list(cls, provider: str, currency: str, data: list[Mapping[str, Any] | str]) -> Self:
-        coins = cls(provider, currency)
+    def from_list(cls, provider: str, currency: str, data: list[dict]) -> "Coins":
+        """Create a Coins collection from a list of coin data dictionaries."""
+        coins = cls(provider=provider, currency=currency)
 
         for coin_data in data:
-            coins.add(Coin.parse(coin_data))
+            coins.upsert(Coin.model_validate(coin_data))
 
         return coins
 
-    def add(self, coin: Coin) -> None:
-        if coin.symbol in self:
-            raise ValueError(f"{coin.symbol} already exists.")
-
-        self.coins[coin.symbol] = coin
-
-    def update(self, coin: Coin) -> None:
-        if coin.symbol not in self:
-            raise KeyError(f"{coin.symbol} does not exist.")
-
+    def upsert(self, coin: Coin) -> None:
+        """Add or update a coin in the collection."""
         self.coins[coin.symbol] = coin
 
     def remove(self, symbol: str) -> None:
+        """Remove a coin from the collection by symbol."""
         del self.coins[symbol.upper()]
 
-    def get(self, symbol: str) -> Coin:
-        return self.coins[symbol.upper()]
-
-    # ----------------------------
-    # Sorting (null-safe)
-    # ----------------------------
 
     def sorted_by_rank(self) -> list[Coin]:
+        """Return coins sorted by rank (ascending), with None values last."""
         return sorted(
             self,
-            key=lambda c: nulls_last(c.rank, 0)
+            key=lambda c: sort_key_with_nulls(c.rank, 0)
         )
 
     def sorted_by_market_cap(self) -> list[Coin]:
+        """Return coins sorted by market cap (descending), with None values last."""
         return sorted(
             self,
-            key=lambda c: nulls_last(c.market_cap, Decimal(0)),
+            key=lambda c: sort_key_with_nulls(c.market_cap, Decimal(0)),
             reverse=True
         )
 
-    # ----------------------------
-    # Dunder methods
-    # ----------------------------
-
     def __contains__(self, symbol: str) -> bool:
+        """Check if a coin symbol exists in the collection."""
         return symbol.upper() in self.coins
 
     def __len__(self) -> int:
+        """Return the number of coins in the collection."""
         return len(self.coins)
 
     def __iter__(self) -> Iterator[Coin]:
+        """Iterate over all coins in the collection."""
         return iter(self.coins.values())
 
     def __getitem__(self, symbol: str) -> Coin:
-        return self.get(symbol)
+        """Get a coin by symbol using bracket notation (coins['BTC'])."""
+        return self.coins[symbol.upper()]
 
     def __str__(self) -> str:
         if not self.coins:

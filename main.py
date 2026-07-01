@@ -1,5 +1,6 @@
 from providers.coingecko import CoinGeckoProvider
-from providers.biance import BinanceProvider
+from providers.binance import BinanceProvider
+from providers.kraken import KrakenProvider
 
 def print_coin(source: str, coin):
     print(f"\n===== {source} =====")
@@ -9,6 +10,7 @@ def print_coin(source: str, coin):
 def main():
     gecko = CoinGeckoProvider()
     binance = BinanceProvider()
+    kraken = KrakenProvider()
 
     # Try multiple currencies
     currencies = ["USD", "EUR"]
@@ -24,11 +26,16 @@ def main():
         # Binance only really uses USDT-style markets
         binance_coins = binance.fetch("USDT")
 
-        btc_gecko = gecko_coins.get("BTC")
-        btc_binance = binance_coins.get("BTC")
+        # Kraken supports multiple currencies
+        kraken_coins = kraken.fetch(currency)
+
+        btc_gecko = gecko_coins["BTC"]
+        btc_binance = binance_coins["BTC"]
+        btc_kraken = kraken_coins["BTC"]
 
         print_coin(f"CoinGecko BTC/{currency}", btc_gecko)
         print_coin("Binance BTC/USDT", btc_binance)
+        print_coin(f"Kraken BTC/{currency}", btc_kraken)
 
 
 if __name__ == "__main__":
