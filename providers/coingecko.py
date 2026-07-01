@@ -60,8 +60,9 @@ class CoinGeckoProvider(Provider):
                 "circulating_supply": item.get("circulating_supply"),
                 "rank": item["market_cap_rank"],
                 "currency": currency,
+                "provider" : self.name,
             }
             for item in data
         ]
 
-        return Coins.from_list(self.name, currency, coins_data)
+        return Coins.from_list(coins_data)

@@ -27,7 +27,8 @@ class Coin(BaseModel):
     volume_24h: Decimal
     circulating_supply: Decimal | None = None
     rank: int | None = None
-    currency: str = "USD"
+    currency: str
+    provider: str
 
     model_config = {"frozen": True}
 
@@ -55,6 +56,7 @@ class Coin(BaseModel):
         symbol = currency_symbols.get(self.currency.upper(), self.currency)
 
         lines = [
+            f"===== {self.provider} {self.name}/{self.currency} =====",
             f"Name: {self.name}",
             f"Symbol: {self.symbol}",
             f"Current Price: {symbol}{format_decimal(self.current_price)}",
@@ -82,27 +84,33 @@ class Coins(BaseModel):
     
     Acts as a dictionary with symbol keys for easy access.
     """
-    provider: str
-    currency: str
-    coins: dict[str, Coin] = Field(default_factory=dict)
+    coins: dict[str, Coin] = Field(default_factory=dict) # the key is f"{provider}:{currency}:{symbol}"
 
     @classmethod
-    def from_list(cls, provider: str, currency: str, data: list[dict]) -> "Coins":
+    def from_list(cls, data: list[dict]) -> "Coins":
         """Create a Coins collection from a list of coin data dictionaries."""
-        coins = cls(provider=provider, currency=currency)
+        coins = cls()
 
         for coin_data in data:
             coins.upsert(Coin.model_validate(coin_data))
 
         return coins
 
+    @staticmethod
+    def get_key_from_details(provider:str, currency:str, symbol:str) -> str:
+        return f"{provider}:{currency}:{symbol}"
+
+    def get(self, provider:str, currency:str, symbol:str) -> Coin:
+        """Get a coin by symbol using bracket notation (coins['BTC'])."""
+        return self.coins[Coins.get_key_from_details(provider,currency,symbol)]
+
     def upsert(self, coin: Coin) -> None:
         """Add or update a coin in the collection."""
-        self.coins[coin.symbol] = coin
+        self.coins[Coins.get_key_from_details(coin.provider,coin.currency,coin.symbol)] = coin
 
-    def remove(self, symbol: str) -> None:
+    def remove(self, provider:str, currency:str, symbol:str) -> None:
         """Remove a coin from the collection by symbol."""
-        del self.coins[symbol.upper()]
+        del self.coins[Coins.get_key_from_details(provider,currency,symbol)]
 
 
     def sorted_by_rank(self) -> list[Coin]:
@@ -120,9 +128,9 @@ class Coins(BaseModel):
             reverse=True
         )
 
-    def __contains__(self, symbol: str) -> bool:
+    def contains(self, provider:str, currency:str, symbol:str) -> bool:
         """Check if a coin symbol exists in the collection."""
-        return symbol.upper() in self.coins
+        return Coins.get_key_from_details(provider,currency,symbol) in self.coins
 
     def __len__(self) -> int:
         """Return the number of coins in the collection."""
@@ -132,21 +140,13 @@ class Coins(BaseModel):
         """Iterate over all coins in the collection."""
         return iter(self.coins.values())
 
-    def __getitem__(self, symbol: str) -> Coin:
-        """Get a coin by symbol using bracket notation (coins['BTC'])."""
-        return self.coins[symbol.upper()]
-
     def __str__(self) -> str:
         if not self.coins:
             return (
-                f"Provider: {self.provider}\n"
-                f"Currency: {self.currency}\n"
                 f"(No coins)"
             )
 
         return (
-                f"Provider: {self.provider}\n"
-                f"Currency: {self.currency}\n"
                 f"Number of coins: {len(self)}\n\n"
                 + "\n\n".join(str(coin) for coin in self)
         )

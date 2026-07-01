@@ -72,10 +72,11 @@ class NobitexProvider(Provider):
                     "circulating_supply": None,  # Nobitex doesn't provide supply
                     "rank": None,  # Nobitex doesn't provide rank
                     "currency": currency,
+                     "provider" : self.name
                 })
                 
             except requests.RequestException:
                 # Skip this symbol if request fails, continue with others
                 continue
 
-        return Coins.from_list(self.name, currency, coins_data)
+        return Coins.from_list(coins_data)

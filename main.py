@@ -3,11 +3,6 @@ from providers.binance import BinanceProvider
 from providers.kraken import KrakenProvider
 from providers.nobitex import NobitexProvider
 
-def print_coin(source: str, coin):
-    print(f"\n===== {source} =====")
-    print(coin)
-
-
 def main():
     gecko = CoinGeckoProvider()
     binance = BinanceProvider()
@@ -31,13 +26,16 @@ def main():
         # Kraken supports multiple currencies
         kraken_coins = kraken.fetch(currency)
 
-        btc_gecko = gecko_coins["BTC"]
-        btc_binance = binance_coins["BTC"]
-        btc_kraken = kraken_coins["BTC"]
+        btc_gecko = gecko_coins.get("CoinGecko", currency.lower(), "BTC")
+        btc_binance = binance_coins.get("Binance", "USDT", "BTC")
+        btc_kraken = kraken_coins.get("Kraken", currency, "BTC")
 
-        print_coin(f"CoinGecko BTC/{currency}", btc_gecko)
-        print_coin("Binance BTC/USDT", btc_binance)
-        print_coin(f"Kraken BTC/{currency}", btc_kraken)
+        print(btc_gecko)
+        print("")
+        print(btc_binance)
+        print("")
+        print(btc_kraken)
+        print("")
 
     # Persian market (Iranian Rial)
     print(f"\n\n############################")
@@ -46,10 +44,10 @@ def main():
 
     nobitex_coins = nobitex.fetch("RLS")
     
-    if "BTC" in nobitex_coins:
-        btc_nobitex = nobitex_coins["BTC"]
-        print_coin("Nobitex BTC/RLS", btc_nobitex)
-
+    if nobitex_coins.contains("Nobitex", "RLS", "BTC"):
+        btc_nobitex = nobitex_coins.get("Nobitex", "RLS", "BTC")
+        print(btc_nobitex)
+        print("")
 
 if __name__ == "__main__":
     main()

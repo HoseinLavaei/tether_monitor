@@ -59,9 +59,11 @@ class BinanceProvider(Provider):
                 "circulating_supply": None,
                 "rank": None,
                 "currency": currency,
+                "provider": self.name,
+
             }
             for item in data
             if item["symbol"].endswith(currency)
         ]
 
-        return Coins.from_list(self.name, currency, coins_data)
+        return Coins.from_list(coins_data)

@@ -90,6 +90,8 @@ class KrakenProvider(Provider):
                 "volume_24h": volume,
                 "circulating_supply": None,  # Kraken doesn't provide supply
                 "rank": None,  # Kraken doesn't provide rank
+                "currency" : currency,
+                "provider": self.name,
             })
 
-        return Coins.from_list(self.name, currency, coins_data)
+        return Coins.from_list(coins_data)
