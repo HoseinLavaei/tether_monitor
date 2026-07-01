@@ -27,6 +27,7 @@ class Coin(BaseModel):
     volume_24h: Decimal
     circulating_supply: Decimal | None = None
     rank: int | None = None
+    currency: str = "USD"
 
     model_config = {"frozen": True}
 
@@ -44,20 +45,28 @@ class Coin(BaseModel):
         def format_decimal(value: Decimal, decimals: int = 2) -> str:
             """Format decimal with thousands separators and specified decimal places."""
             return f"{value:,.{decimals}f}"
+        
+        # Currency symbols
+        currency_symbols = {
+            "USD": "$",
+            "EUR": "€",
+            "RLS": "IRT",  # Iranian Rial
+        }
+        symbol = currency_symbols.get(self.currency.upper(), self.currency)
 
         lines = [
             f"Name: {self.name}",
             f"Symbol: {self.symbol}",
-            f"Current Price: ${format_decimal(self.current_price)}",
+            f"Current Price: {symbol}{format_decimal(self.current_price)}",
             f"24h Change: {format_decimal(self.price_change_24h, 2)}%",
-            f"24h High: ${format_decimal(self.high_24h)}",
-            f"24h Low: ${format_decimal(self.low_24h)}",
+            f"24h High: {symbol}{format_decimal(self.high_24h)}",
+            f"24h Low: {symbol}{format_decimal(self.low_24h)}",
         ]
 
         if self.market_cap is not None:
-            lines.append(f"Market Cap: ${format_decimal(self.market_cap, 0)}")
+            lines.append(f"Market Cap: {symbol}{format_decimal(self.market_cap, 0)}")
 
-        lines.append(f"24h Volume: ${format_decimal(self.volume_24h, 0)}")
+        lines.append(f"24h Volume: {symbol}{format_decimal(self.volume_24h, 0)}")
 
         if self.circulating_supply is not None:
             lines.append(f"Circulating Supply: {format_decimal(self.circulating_supply, 0)}")

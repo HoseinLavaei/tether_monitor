@@ -58,6 +58,7 @@ class BinanceProvider(Provider):
                 "volume_24h": item["quoteVolume"],
                 "circulating_supply": None,
                 "rank": None,
+                "currency": currency,
             }
             for item in data
             if item["symbol"].endswith(currency)

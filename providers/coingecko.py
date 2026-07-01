@@ -59,6 +59,7 @@ class CoinGeckoProvider(Provider):
                 "volume_24h": item["total_volume"],
                 "circulating_supply": item.get("circulating_supply"),
                 "rank": item["market_cap_rank"],
+                "currency": currency,
             }
             for item in data
         ]
