@@ -2,12 +2,14 @@ from providers.coingecko import CoinGeckoProvider
 from providers.binance import BinanceProvider
 from providers.kraken import KrakenProvider
 from providers.nobitex import NobitexProvider
+from providers.aban_tether import AbanTetherProvider
 
 def main():
     gecko = CoinGeckoProvider()
     binance = BinanceProvider()
     kraken = KrakenProvider()
     nobitex = NobitexProvider()
+    aban_tether = AbanTetherProvider()
 
     # Try multiple currencies
     currencies = ["USD", "EUR"]
@@ -43,11 +45,19 @@ def main():
     print(f"############################")
 
     nobitex_coins = nobitex.fetch("RLS")
+    aban_tether_coins = aban_tether.fetch("IRT")
+
     
     if nobitex_coins.contains("Nobitex", "RLS", "BTC"):
         btc_nobitex = nobitex_coins.get("Nobitex", "RLS", "BTC")
         print(btc_nobitex)
         print("")
+
+    if aban_tether_coins.contains("AbanTether", "IRT", "BTC"):
+        btc_aban_tether = aban_tether_coins.get("AbanTether", "IRT", "BTC")
+        print(btc_aban_tether)
+        print("")
+
 
 if __name__ == "__main__":
     main()

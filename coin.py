@@ -20,11 +20,11 @@ class Coin(BaseModel):
     name: str
     symbol: str
     current_price: Decimal
-    price_change_24h: Decimal
-    high_24h: Decimal
-    low_24h: Decimal
+    price_change_24h: Decimal | None = None
+    high_24h: Decimal | None = None
+    low_24h: Decimal | None = None
     market_cap: Decimal | None = None
-    volume_24h: Decimal
+    volume_24h: Decimal | None = None
     circulating_supply: Decimal | None = None
     rank: int | None = None
     currency: str
@@ -35,11 +35,15 @@ class Coin(BaseModel):
     @property
     def is_gaining(self) -> bool:
         """True if the 24h price change is positive."""
+        if self.price_change_24h is None:
+            raise ValueError("Price change 24h is not available.")
         return self.price_change_24h > 0
 
     @property
     def is_losing(self) -> bool:
         """True if the 24h price change is negative."""
+        if self.price_change_24h is None:
+            raise ValueError("Price change 24h is not available.")
         return self.price_change_24h < 0
 
     def __str__(self) -> str:
@@ -60,15 +64,22 @@ class Coin(BaseModel):
             f"Name: {self.name}",
             f"Symbol: {self.symbol}",
             f"Current Price: {symbol}{format_decimal(self.current_price)}",
-            f"24h Change: {format_decimal(self.price_change_24h, 2)}%",
-            f"24h High: {symbol}{format_decimal(self.high_24h)}",
-            f"24h Low: {symbol}{format_decimal(self.low_24h)}",
         ]
+
+        if self.price_change_24h is not None:
+            lines.append(f"24h Change: {format_decimal(self.price_change_24h, 2)}%")
+
+        if self.high_24h is not None:
+            lines.append(f"24h High: {symbol}{format_decimal(self.high_24h)}")
+
+        if self.low_24h is not None:
+            lines.append(f"24h High: {symbol}{format_decimal(self.low_24h)}")
 
         if self.market_cap is not None:
             lines.append(f"Market Cap: {symbol}{format_decimal(self.market_cap, 0)}")
 
-        lines.append(f"24h Volume: {symbol}{format_decimal(self.volume_24h, 0)}")
+        if self.volume_24h is not None:
+            lines.append(f"24h Volume: {symbol}{format_decimal(self.volume_24h, 0)}")
 
         if self.circulating_supply is not None:
             lines.append(f"Circulating Supply: {format_decimal(self.circulating_supply, 0)}")
