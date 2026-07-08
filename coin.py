@@ -73,7 +73,7 @@ class Coin(BaseModel):
             lines.append(f"24h High: {symbol}{format_decimal(self.high_24h)}")
 
         if self.low_24h is not None:
-            lines.append(f"24h High: {symbol}{format_decimal(self.low_24h)}")
+            lines.append(f"24h Low: {symbol}{format_decimal(self.low_24h)}")
 
         if self.market_cap is not None:
             lines.append(f"Market Cap: {symbol}{format_decimal(self.market_cap, 0)}")

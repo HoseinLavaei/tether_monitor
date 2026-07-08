@@ -1,8 +1,5 @@
-import requests
-
 from provider_base import Provider
 from coin import Coins
-
 
 class AbanTetherProvider(Provider):
     """AbanTether exchange API provider.
@@ -10,28 +7,15 @@ class AbanTetherProvider(Provider):
     Supports Iranian Rial (IRT) markets.
     """
 
-    name = "AbanTether"
-
+    NAME = "AbanTether"
     URL = "https://api.abantether.com/api/v1/manager/otc/ticker"
+    SUPPORTED_CURRENCIES = "IRT"
 
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "tether-monitor/1.0"
-        })
+    def get_params(self, currency:str) -> dict[str, str] | None:
+        return None
 
-    def fetch(self, currency: str = "IRT") -> Coins:
-        if currency.upper() != "IRT":
-            raise ValueError(
-                "AbanTether only supports the IRT market."
-            )
-
-        response = self.session.get(self.URL, timeout=30)
-        response.raise_for_status()
-
-        data = response.json()
-
-        markets = data["data"]["markets"]
+    def _fetch(self, currency: str, json:dict) -> Coins:
+        markets = json["data"]["markets"]
 
         coins_data = []
 
@@ -40,7 +24,7 @@ class AbanTetherProvider(Provider):
                 continue
 
             coins_data.append({
-                "provider": self.name,
+                "provider": self.NAME,
                 "currency": "IRT",
 
                 "name": market["symbol"],

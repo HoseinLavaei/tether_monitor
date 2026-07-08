@@ -1,78 +1,51 @@
-import requests
-
 from coin import Coins
 from provider_base import Provider
-
 
 class WallexProvider(Provider):
     """Wallex API provider."""
 
-    name = "Wallex"
+    NAME = "Wallex"
+    URL = "https://api.wallex.ir/v1/markets"
+    SUPPORTED_CURRENCIES = {"TMN", "USDT"}
 
-    SUPPORTED_QUOTES = {"TMN", "USDT"}
+    def get_params(self, currency:str) -> dict[str, str] | None:
+        return None
 
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "tether-monitor/1.0"
-        })
+    def _fetch(self, currency: str, json: dict) -> Coins:
+        def _optional(value):
+            if value in ("-", "", None):
+                return None
+            return value
 
-    @staticmethod
-    def _optional(value):
-        """Convert Wallex's placeholder values to None."""
-        if value in ("-", "", None):
-            return None
-        return value
-
-    def fetch(self, currency: str = "TMN") -> Coins:
-        currency = currency.upper()
-
-        if currency not in self.SUPPORTED_QUOTES:
-            raise ValueError(
-                f"Unsupported currency: {currency}. "
-                f"Supported: {self.SUPPORTED_QUOTES}"
-            )
-
-        url = "https://api.wallex.ir/v1/markets"
-
-        try:
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-            data = response.json()["result"]["symbols"]
-        except requests.RequestException as e:
-            raise RuntimeError(f"Wallex API error: {e}") from e
+        symbols = json.get("result", {}).get("symbols", {})
 
         coins_data = []
 
-        for market in data.values():
+        for market in symbols.values():
             if market["quoteAsset"].upper() != currency:
                 continue
 
             stats = market["stats"]
 
-            # If there is no current price at all, ignore this market.
             if stats["lastPrice"] == "-":
                 continue
 
             coins_data.append({
-                "name": market["enBaseAsset"],
+                "name": market.get("enName", market["baseAsset"]),
                 "symbol": market["baseAsset"].upper(),
 
                 "current_price": stats["lastPrice"],
-
-                "price_change_24h": self._optional(stats["24h_ch"]),
-                "high_24h": self._optional(stats["24h_highPrice"]),
-                "low_24h": self._optional(stats["24h_lowPrice"]),
+                "price_change_24h": _optional(stats.get("24h_ch")),
+                "high_24h": _optional(stats.get("24h_highPrice")),
+                "low_24h": _optional(stats.get("24h_lowPrice")),
 
                 "market_cap": None,
-
-                "volume_24h": self._optional(stats["24h_quoteVolume"]),
-
+                "volume_24h": _optional(stats.get("24h_quoteVolume")),
                 "circulating_supply": None,
                 "rank": None,
 
                 "currency": currency,
-                "provider": self.name,
+                "provider": self.NAME,
             })
 
         return Coins.from_list(coins_data)

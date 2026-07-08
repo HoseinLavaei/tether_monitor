@@ -1,8 +1,5 @@
-import requests
-
 from coin import Coins
 from provider_base import Provider
-
 
 class BitpinProvider(Provider):
     """Bitpin API provider for cryptocurrency market data.
@@ -11,44 +8,25 @@ class BitpinProvider(Provider):
     circulating supply, or rank information.
     """
 
-    name = "Bitpin"
+    NAME = "Bitpin"
+    URL = "https://api.bitpin.ir/v1/mkt/markets/"
+    SUPPORTED_CURRENCIES = {"IRT", "USDT"}
 
-    SUPPORTED_QUOTES = {"IRT", "USDT"}
+    def get_params(self, currency:str) -> dict[str, str] | None:
+        return None
 
-    def __init__(self):
-        """Initialize provider with session for connection pooling."""
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "tether-monitor/1.0"})
-
-    def fetch(self, currency: str = "IRT") -> Coins:
+    def _fetch(self, currency: str, json: dict) -> Coins:
         """Fetch coin data from the Bitpin API.
 
         Args:
-            currency: Quote currency (e.g. "IRT", "USDT").
+            currency: Quote currency ("IRT" or "USDT").
+            json: Parsed JSON response from the Bitpin API.
 
         Returns:
             Coins collection with market data.
-
-        Raises:
-            ValueError: If the currency is not supported.
-            RuntimeError: If the API request fails.
         """
-        currency = currency.upper()
 
-        if currency not in self.SUPPORTED_QUOTES:
-            raise ValueError(
-                f"Unsupported currency: {currency}. "
-                f"Supported: {self.SUPPORTED_QUOTES}"
-            )
-
-        url = "https://api.bitpin.ir/v1/mkt/markets/"
-
-        try:
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-            data = response.json()["results"]
-        except requests.RequestException as e:
-            raise RuntimeError(f"Bitpin API error: {e}") from e
+        markets = json.get("results", [])
 
         coins_data = [
             {
@@ -63,9 +41,9 @@ class BitpinProvider(Provider):
                 "circulating_supply": None,
                 "rank": None,
                 "currency": currency,
-                "provider": self.name,
+                "provider": self.NAME,
             }
-            for market in data
+            for market in markets
             if market["currency2"]["code"].upper() == currency
         ]
 
